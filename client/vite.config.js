@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // 🔥 Имя репозитория (должно совпадать с GitHub)
-const REPO_NAME = 'mama-planer'
+const REPO_NAME = 'mama-plan'
 
 export default defineConfig({
     plugins: [vue()],
