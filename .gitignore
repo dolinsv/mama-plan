@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment
+server/.env
+*.log
+
+# Build outputs
+client/dist/
+server/db/*.sqlite
+server/db/*.sqlite-wal
+server/db/*.sqlite-shm
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml
