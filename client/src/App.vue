@@ -7,6 +7,7 @@
     </div>
 
     <ConfettiBurst :active="celebrate" />
+    <WelcomeModal :open="showWelcome" @close="closeWelcome" />
 
     <header class="topbar">
       <div class="topbar-text">
@@ -164,6 +165,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import TaskItem from './components/TaskItem.vue'
 import ConfettiBurst from './components/ConfettiBurst.vue'
+import WelcomeModal from './components/WelcomeModal.vue'
 import {
   CATEGORIES,
   PRIORITIES,
@@ -173,7 +175,9 @@ import {
   loadStreak,
   touchStreak,
   greetingForNow,
-  formatDateRu
+  formatDateRu,
+  hasSeenWelcome,
+  markWelcomeSeen
 } from './utils/planner'
 
 const tasks = ref([])
@@ -186,6 +190,7 @@ const currentDate = ref('')
 const greeting = ref('')
 const streak = ref({ count: 0, lastDate: null })
 const celebrate = ref(false)
+const showWelcome = ref(false)
 const inputRef = ref(null)
 
 const categories = CATEGORIES
@@ -246,6 +251,7 @@ onMounted(() => {
   greeting.value = greetingForNow(now)
   tasks.value = loadTasks()
   streak.value = loadStreak()
+  showWelcome.value = !hasSeenWelcome()
 
   if (typeof window.vkBridge !== 'undefined') {
     Promise.race([
@@ -254,8 +260,16 @@ onMounted(() => {
     ]).catch(() => {})
   }
 
-  nextTick(() => inputRef.value?.focus())
+  if (!showWelcome.value) {
+    nextTick(() => inputRef.value?.focus())
+  }
 })
+
+function closeWelcome() {
+  showWelcome.value = false
+  markWelcomeSeen()
+  nextTick(() => inputRef.value?.focus())
+}
 
 watch(
   tasks,

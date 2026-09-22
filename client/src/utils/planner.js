@@ -31,6 +31,23 @@ export const MOTIVATIONS = [
 const STORAGE_KEY = 'mama_plan_v2'
 const LEGACY_KEY = 'mama_tasks'
 const STREAK_KEY = 'mama_plan_streak'
+const WELCOME_KEY = 'mama_plan_welcome_seen'
+
+export function hasSeenWelcome() {
+  try {
+    return localStorage.getItem(WELCOME_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function markWelcomeSeen() {
+  try {
+    localStorage.setItem(WELCOME_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
 
 export function loadTasks() {
   try {
