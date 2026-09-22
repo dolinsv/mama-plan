@@ -1,13 +1,13 @@
 export const CATEGORIES = [
   { id: 'kids', name: 'Дети', icon: '👶', color: '#6ea8c9' },
   { id: 'home', name: 'Дом', icon: '🏠', color: '#2f6f5e' },
-  { id: 'self', name: 'Себя', icon: '🌿', color: '#d4637a' },
-  { id: 'work', name: 'Дела', icon: '✨', color: '#d4a04a' },
+  { id: 'self', name: 'Отдых', icon: '🌿', color: '#d4637a' },
+  { id: 'work', name: 'Работа', icon: '💼', color: '#d4a04a' },
   { id: 'shop', name: 'Покупки', icon: '🛒', color: '#7b6bb0' }
 ]
 
 export const PRIORITIES = [
-  { id: 'low', name: 'Спокойно', tone: '#7a9489' },
+  { id: 'low', name: 'Обычно', tone: '#7a9489' },
   { id: 'medium', name: 'Важно', tone: '#d4a04a' },
   { id: 'high', name: 'Срочно', tone: '#d4637a' }
 ]
@@ -17,7 +17,7 @@ export const QUICK_TEMPLATES = [
   { text: 'Приготовить ужин', category: 'home', priority: 'medium' },
   { text: '10 минут для себя', category: 'self', priority: 'medium' },
   { text: 'Купить продукты', category: 'shop', priority: 'low' },
-  { text: 'Записать идеи на завтра', category: 'work', priority: 'low' }
+  { text: 'Ответить на сообщения', category: 'work', priority: 'low' }
 ]
 
 export const MOTIVATIONS = [
