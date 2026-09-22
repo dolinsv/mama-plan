@@ -1,5 +1,34 @@
-# Vue 3 + Vite
+# MamaPlan — Планировщик для мам
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Уютный планировщик задач для мам: категории, приоритеты, прогресс дня, стрик и быстрые шаблоны.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+**Демо:** https://dolinsv.github.io/mama-plan/
+
+## Возможности
+
+- Задачи с категориями (Дети, Дом, Себя, Дела, Покупки) и приоритетами
+- Фильтры по статусу и категории
+- Кольцо прогресса и серия дней подряд
+- Быстрые шаблоны типичных дел
+- Редактирование задач, анимации списка, конфетти при закрытии всех дел
+- Локальное сохранение в браузере (и миграция старых задач)
+
+## Запуск
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+## Деплой на GitHub Pages
+
+```bash
+cd client
+npm run deploy
+```
+
+## Структура
+
+- `client/` — Vue 3 + Vite приложение (публичный фронт)
+- `server/` — API/VK Mini App (опционально, для расширенной версии)
