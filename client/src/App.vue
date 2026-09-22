@@ -8,171 +8,145 @@
 
     <ConfettiBurst :active="celebrate" />
 
-    <header class="hero">
-      <div class="hero-top">
-        <div>
-          <p class="eyebrow">{{ greeting }}</p>
-          <h1 class="brand">MamaPlan</h1>
-          <p class="date">{{ currentDate }}</p>
-        </div>
-        <ProgressRing :done="completedCount" :total="totalCount" />
+    <header class="topbar">
+      <div class="topbar-text">
+        <h1 class="brand">MamaPlan</h1>
+        <p class="sub">{{ greeting }} · {{ currentDate }}</p>
       </div>
-
-      <p class="motivation">{{ motivation }}</p>
-
-      <div class="hero-stats">
-        <div class="stat">
-          <strong>{{ activeCount }}</strong>
-          <span>в работе</span>
-        </div>
-        <div class="stat">
-          <strong>{{ completedCount }}</strong>
-          <span>готово</span>
-        </div>
-        <div class="stat streak" :class="{ hot: streak.count > 0 }">
-          <strong>{{ streak.count }}</strong>
-          <span>дней подряд</span>
-        </div>
+      <div class="progress-pill" :title="`${completedCount} из ${totalCount}`">
+        <strong>{{ progressPercent }}%</strong>
+        <span>готово</span>
       </div>
     </header>
 
-    <main class="shell">
-      <section class="panel filters">
-        <p class="panel-label">Статус</p>
-        <div class="segment" role="tablist" aria-label="Фильтр по статусу">
+    <section class="composer" aria-label="Создать задачу">
+      <form class="composer-bar" @submit.prevent="addTask">
+        <input
+          ref="inputRef"
+          v-model="newTaskText"
+          class="input"
+          maxlength="120"
+          placeholder="Напишите задачу и нажмите «Добавить»"
+          autocomplete="off"
+        />
+        <button class="btn-add" type="submit" :disabled="!newTaskText.trim()">
+          Добавить
+        </button>
+      </form>
+
+      <div class="composer-meta">
+        <div class="meta-scroll" role="group" aria-label="Категория новой задачи">
           <button
-            v-for="f in statusFilters"
-            :key="f.id"
+            v-for="cat in categories"
+            :key="cat.id"
             type="button"
-            role="tab"
-            class="segment-btn"
-            :class="{ active: statusFilter === f.id }"
-            :aria-selected="statusFilter === f.id"
-            @click="statusFilter = f.id"
+            class="meta-chip"
+            :class="{ active: newCategory === cat.id }"
+            :style="{ '--tone': cat.color }"
+            @click="newCategory = cat.id"
           >
-            {{ f.label }}
+            {{ cat.icon }} {{ cat.name }}
+          </button>
+        </div>
+        <div class="priority-row" role="group" aria-label="Приоритет">
+          <button
+            v-for="p in priorities"
+            :key="p.id"
+            type="button"
+            class="prio-btn"
+            :class="{ active: newPriority === p.id }"
+            :style="{ '--tone': p.tone }"
+            @click="newPriority = p.id"
+          >
+            {{ p.name }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <main class="shell">
+      <section class="list-panel">
+        <div class="list-toolbar">
+          <div class="tabs" role="tablist" aria-label="Показать задачи">
+            <button
+              v-for="f in statusFilters"
+              :key="f.id"
+              type="button"
+              class="tab"
+              :class="{ active: statusFilter === f.id }"
+              @click="statusFilter = f.id"
+            >
+              {{ f.label }}
+              <span class="count">{{ statusCounts[f.id] }}</span>
+            </button>
+          </div>
+
+          <button
+            v-if="completedCount > 0"
+            class="clear-btn"
+            type="button"
+            @click="clearCompleted"
+          >
+            Очистить готовые
           </button>
         </div>
 
-        <p class="panel-label">Категория</p>
-        <div class="cat-grid" role="tablist" aria-label="Фильтр по категории">
+        <div class="filter-scroll" role="tablist" aria-label="Фильтр категории">
           <button
             type="button"
-            class="cat-tile"
+            class="filter-chip"
             :class="{ active: categoryFilter === 'all' }"
             @click="categoryFilter = 'all'"
           >
-            <span class="cat-ico">✦</span>
-            <span>Все</span>
+            Все
           </button>
           <button
             v-for="cat in categories"
             :key="cat.id"
             type="button"
-            class="cat-tile"
+            class="filter-chip"
             :class="{ active: categoryFilter === cat.id }"
             :style="{ '--tone': cat.color }"
             @click="categoryFilter = cat.id"
           >
-            <span class="cat-ico">{{ cat.icon }}</span>
-            <span>{{ cat.name }}</span>
+            {{ cat.icon }} {{ cat.name }}
           </button>
         </div>
-      </section>
 
-      <section class="panel composer">
-        <form class="add-form" @submit.prevent="addTask">
-          <input
-            v-model="newTaskText"
-            class="input"
-            maxlength="120"
-            placeholder="Новая задача..."
-            autocomplete="off"
+        <TransitionGroup
+          name="list"
+          tag="div"
+          class="task-list"
+          ref="listRef"
+        >
+          <TaskItem
+            v-for="task in visibleTasks"
+            :key="task.id"
+            :task="task"
+            @toggle="toggleTask"
+            @remove="deleteTask"
+            @update="updateTask"
           />
+        </TransitionGroup>
 
-          <div class="field-block">
-            <p class="panel-label">Категория</p>
-            <div class="option-row">
-              <button
-                v-for="cat in categories"
-                :key="cat.id"
-                type="button"
-                class="option-chip"
-                :class="{ active: newCategory === cat.id }"
-                :style="{ '--tone': cat.color }"
-                @click="newCategory = cat.id"
-              >
-                {{ cat.icon }} {{ cat.name }}
-              </button>
-            </div>
-          </div>
+        <div v-if="visibleTasks.length === 0" class="empty">
+          <p class="empty-title">{{ emptyTitle }}</p>
+          <p class="empty-hint">{{ emptyHint }}</p>
 
-          <div class="field-block">
-            <p class="panel-label">Приоритет</p>
-            <div class="segment priority-segment" role="group" aria-label="Приоритет">
-              <button
-                v-for="p in priorities"
-                :key="p.id"
-                type="button"
-                class="segment-btn"
-                :class="{ active: newPriority === p.id }"
-                :style="{ '--tone': p.tone }"
-                @click="newPriority = p.id"
-              >
-                {{ p.name }}
-              </button>
-            </div>
-          </div>
-
-          <button class="btn-add" type="submit" :disabled="!newTaskText.trim()">
-            Добавить задачу
-          </button>
-        </form>
-
-        <div class="templates">
-          <span class="templates-label">Быстрый старт</span>
-          <div class="templates-list">
+          <div v-if="tasks.length === 0" class="empty-templates">
+            <p class="empty-label">Или возьмите готовый вариант:</p>
             <button
               v-for="(tpl, i) in templates"
               :key="i"
-              class="template"
               type="button"
-              @click="applyTemplate(tpl)"
+              class="template"
+              @click="quickAdd(tpl)"
             >
               {{ tpl.text }}
             </button>
           </div>
         </div>
       </section>
-
-      <section class="list-head">
-        <h2>Задачи</h2>
-        <button
-          v-if="completedCount > 0"
-          class="clear-btn"
-          type="button"
-          @click="clearCompleted"
-        >
-          Очистить готовые
-        </button>
-      </section>
-
-      <TransitionGroup name="list" tag="section" class="task-list">
-        <TaskItem
-          v-for="task in visibleTasks"
-          :key="task.id"
-          :task="task"
-          @toggle="toggleTask"
-          @remove="deleteTask"
-          @update="updateTask"
-        />
-      </TransitionGroup>
-
-      <div v-if="visibleTasks.length === 0" class="empty">
-        <div class="empty-icon">{{ emptyIcon }}</div>
-        <p>{{ emptyTitle }}</p>
-        <span>{{ emptyHint }}</span>
-      </div>
     </main>
 
     <footer class="footer">
@@ -187,15 +161,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import ProgressRing from './components/ProgressRing.vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import TaskItem from './components/TaskItem.vue'
 import ConfettiBurst from './components/ConfettiBurst.vue'
 import {
   CATEGORIES,
   PRIORITIES,
   QUICK_TEMPLATES,
-  MOTIVATIONS,
   loadTasks,
   saveTasks,
   loadStreak,
@@ -212,17 +184,16 @@ const statusFilter = ref('active')
 const categoryFilter = ref('all')
 const currentDate = ref('')
 const greeting = ref('')
-const motivation = ref('')
 const streak = ref({ count: 0, lastDate: null })
 const celebrate = ref(false)
-const isVkMode = ref(false)
+const inputRef = ref(null)
 
 const categories = CATEGORIES
 const priorities = PRIORITIES
 const templates = QUICK_TEMPLATES
 
 const statusFilters = [
-  { id: 'active', label: 'В работе' },
+  { id: 'active', label: 'Сейчас' },
   { id: 'all', label: 'Все' },
   { id: 'done', label: 'Готово' }
 ]
@@ -230,6 +201,15 @@ const statusFilters = [
 const totalCount = computed(() => tasks.value.length)
 const completedCount = computed(() => tasks.value.filter((t) => t.done).length)
 const activeCount = computed(() => totalCount.value - completedCount.value)
+const progressPercent = computed(() =>
+  totalCount.value ? Math.round((completedCount.value / totalCount.value) * 100) : 0
+)
+
+const statusCounts = computed(() => ({
+  active: activeCount.value,
+  all: totalCount.value,
+  done: completedCount.value
+}))
 
 const visibleTasks = computed(() => {
   let list = [...tasks.value]
@@ -247,31 +227,23 @@ const visibleTasks = computed(() => {
   })
 })
 
-const emptyIcon = computed(() => {
-  if (tasks.value.length === 0) return '🌱'
-  if (statusFilter.value === 'done') return '✨'
-  if (activeCount.value === 0) return '🎉'
-  return '🔎'
-})
-
 const emptyTitle = computed(() => {
-  if (tasks.value.length === 0) return 'Пока нет задач'
-  if (activeCount.value === 0 && statusFilter.value === 'active') return 'Всё сделано'
-  if (statusFilter.value === 'done') return 'Ещё ничего не отмечено'
-  return 'Нет задач в этом фильтре'
+  if (tasks.value.length === 0) return 'Список пуст'
+  if (activeCount.value === 0 && statusFilter.value === 'active') return 'Все текущие задачи сделаны'
+  if (statusFilter.value === 'done') return 'Пока нет выполненных'
+  return 'В этом разделе пусто'
 })
 
 const emptyHint = computed(() => {
-  if (tasks.value.length === 0) return 'Напишите задачу выше или выберите шаблон'
-  if (activeCount.value === 0) return 'Отличная работа — можно отдохнуть'
-  return 'Смените фильтр или добавьте новую'
+  if (tasks.value.length === 0) return 'Напишите задачу сверху и нажмите «Добавить»'
+  if (activeCount.value === 0) return 'Можно добавить новую или открыть вкладку «Все»'
+  return 'Смените фильтр выше'
 })
 
 onMounted(() => {
   const now = new Date()
   currentDate.value = formatDateRu(now)
   greeting.value = greetingForNow(now)
-  motivation.value = MOTIVATIONS[now.getDate() % MOTIVATIONS.length]
   tasks.value = loadTasks()
   streak.value = loadStreak()
 
@@ -279,14 +251,10 @@ onMounted(() => {
     Promise.race([
       window.vkBridge.send('VKWebAppInit'),
       new Promise((_, reject) => setTimeout(() => reject(), 1200))
-    ])
-      .then(() => {
-        isVkMode.value = true
-      })
-      .catch(() => {
-        isVkMode.value = false
-      })
+    ]).catch(() => {})
   }
+
+  nextTick(() => inputRef.value?.focus())
 })
 
 watch(
@@ -297,7 +265,7 @@ watch(
   { deep: true }
 )
 
-function addTask() {
+async function addTask() {
   const text = newTaskText.value.trim()
   if (!text) return
 
@@ -311,12 +279,18 @@ function addTask() {
   })
 
   newTaskText.value = ''
+  statusFilter.value = 'active'
+  categoryFilter.value = 'all'
+
+  await nextTick()
+  inputRef.value?.focus()
 }
 
-function applyTemplate(tpl) {
+function quickAdd(tpl) {
   newTaskText.value = tpl.text
   newCategory.value = tpl.category
   newPriority.value = tpl.priority
+  addTask()
 }
 
 function toggleTask(id) {
@@ -359,9 +333,9 @@ function clearCompleted() {
   min-height: 100vh;
   max-width: 520px;
   margin: 0 auto;
-  padding: 20px 16px 40px;
+  padding: 16px 14px 36px;
   overflow: clip;
-  animation: rise-in 0.55s var(--ease);
+  animation: rise-in 0.45s var(--ease);
 }
 
 .blobs {
@@ -375,7 +349,7 @@ function clearCompleted() {
   position: absolute;
   border-radius: 50%;
   filter: blur(30px);
-  opacity: 0.45;
+  opacity: 0.4;
   animation: float-blob 10s ease-in-out infinite;
 }
 
@@ -383,229 +357,117 @@ function clearCompleted() {
   width: 220px;
   height: 220px;
   background: #bfe3d5;
-  top: 8%;
-  left: -60px;
+  top: 6%;
+  left: -70px;
 }
 
 .b2 {
   width: 180px;
   height: 180px;
   background: #f0c8d3;
-  top: 18%;
-  right: -40px;
+  top: 12%;
+  right: -50px;
   animation-delay: -3s;
 }
 
 .b3 {
-  width: 240px;
-  height: 240px;
+  width: 220px;
+  height: 220px;
   background: #c9dff0;
-  bottom: 8%;
-  left: 20%;
+  bottom: 10%;
+  left: 30%;
   animation-delay: -6s;
 }
 
-.hero,
+.topbar,
+.composer,
 .shell,
 .footer {
   position: relative;
   z-index: 1;
 }
 
-.hero {
-  padding: 8px 4px 18px;
-}
-
-.hero-top {
+.topbar {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
   align-items: center;
-}
-
-.eyebrow {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--brand);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 4px 2px;
 }
 
 .brand {
   font-family: var(--font-display);
-  font-size: clamp(2.1rem, 8vw, 2.7rem);
-  font-weight: 700;
-  line-height: 1.05;
+  font-size: 1.85rem;
+  line-height: 1;
   color: var(--brand-deep);
-  margin: 4px 0 6px;
+  margin: 0 0 4px;
 }
 
-.date {
+.sub {
+  margin: 0;
   color: var(--muted);
-  font-size: 0.95rem;
+  font-size: 0.86rem;
+  font-weight: 600;
   text-transform: capitalize;
 }
 
-.motivation {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.35));
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.hero-stats {
+.progress-pill {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.stat {
-  padding: 12px 10px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  text-align: center;
-  backdrop-filter: blur(10px);
-}
-
-.stat strong {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  color: var(--brand-deep);
-  line-height: 1.1;
-}
-
-.stat span {
-  font-size: 0.72rem;
-  color: var(--muted);
-  font-weight: 700;
-  text-transform: lowercase;
-}
-
-.stat.hot strong {
-  color: var(--accent);
-}
-
-.shell {
-  display: grid;
-  gap: 14px;
-}
-
-.panel {
-  padding: 16px;
-  border-radius: 24px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.62));
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 16px 40px rgba(31, 79, 67, 0.1);
-}
-
-.panel-label {
-  margin: 0 0 8px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.panel-label + .segment,
-.panel-label + .cat-grid,
-.panel-label + .option-row {
-  margin-bottom: 14px;
-}
-
-.field-block:last-of-type .panel-label + .segment {
-  margin-bottom: 0;
-}
-
-.segment {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 4px;
-  border-radius: 16px;
-  background: rgba(28, 43, 38, 0.06);
-}
-
-.segment-btn {
-  min-height: 40px;
-  border-radius: 12px;
-  font-weight: 800;
-  font-size: 0.86rem;
-  color: var(--ink-soft);
-  transition: transform 0.2s var(--ease), background 0.2s, color 0.2s, box-shadow 0.2s;
-}
-
-.segment-btn.active {
-  background: #fff;
-  color: var(--brand-deep);
-  box-shadow: 0 6px 16px rgba(31, 79, 67, 0.14);
-}
-
-.priority-segment .segment-btn.active {
-  color: var(--tone, var(--brand-deep));
-}
-
-.cat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 0;
-}
-
-.cat-tile {
-  display: grid;
-  gap: 4px;
   justify-items: center;
-  padding: 12px 6px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(28, 43, 38, 0.06);
-  color: var(--ink-soft);
-  font-size: 0.78rem;
-  font-weight: 800;
-  transition: transform 0.2s var(--ease), background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  min-width: 72px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(47, 111, 94, 0.12);
+  box-shadow: 0 10px 24px rgba(31, 79, 67, 0.08);
 }
 
-.cat-tile:hover {
-  transform: translateY(-1px);
-}
-
-.cat-tile.active {
-  background: color-mix(in srgb, var(--tone, var(--brand)) 16%, white);
-  border-color: color-mix(in srgb, var(--tone, var(--brand)) 40%, white);
-  color: var(--ink);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--tone, var(--brand)) 22%, transparent);
-}
-
-.cat-ico {
-  font-size: 1.15rem;
+.progress-pill strong {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--brand-deep);
   line-height: 1;
 }
 
-.add-form {
+.progress-pill span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: lowercase;
+}
+
+.composer {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 36px rgba(31, 79, 67, 0.12);
+}
+
+.composer-bar {
   display: grid;
-  gap: 14px;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
 }
 
 .input {
   width: 100%;
-  border-radius: 16px;
-  border: 1px solid rgba(47, 111, 94, 0.14);
-  background: rgba(255, 255, 255, 0.92);
-  padding: 14px 16px;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(47, 111, 94, 0.16);
+  background: #fff;
+  padding: 12px 14px;
   outline: none;
   color: var(--ink);
-  user-select: text;
   font-size: 1rem;
   font-weight: 600;
+  user-select: text;
 }
 
 .input:focus {
@@ -613,41 +475,15 @@ function clearCompleted() {
   box-shadow: 0 0 0 4px rgba(47, 111, 94, 0.12);
 }
 
-.option-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.option-chip {
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(28, 43, 38, 0.08);
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  font-weight: 800;
-  transition: transform 0.2s var(--ease), background 0.2s, border-color 0.2s, color 0.2s;
-}
-
-.option-chip.active {
-  background: color-mix(in srgb, var(--tone, var(--brand)) 18%, white);
-  border-color: color-mix(in srgb, var(--tone, var(--brand)) 45%, white);
-  color: var(--ink);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone, var(--brand)) 20%, transparent);
-}
-
 .btn-add {
-  width: 100%;
-  min-height: 50px;
-  border-radius: 16px;
+  min-width: 108px;
+  min-height: 48px;
+  border-radius: 14px;
   background: linear-gradient(135deg, var(--brand), var(--brand-deep));
   color: #fff;
   font-weight: 800;
-  font-size: 0.98rem;
-  letter-spacing: 0.01em;
-  box-shadow: 0 12px 28px rgba(47, 111, 94, 0.28);
-  transition: transform 0.2s var(--ease), opacity 0.2s, box-shadow 0.2s;
+  box-shadow: 0 10px 22px rgba(47, 111, 94, 0.28);
+  transition: transform 0.2s var(--ease), opacity 0.2s;
 }
 
 .btn-add:hover:not(:disabled) {
@@ -660,26 +496,190 @@ function clearCompleted() {
   box-shadow: none;
 }
 
-.templates {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(28, 43, 38, 0.06);
+.composer-meta {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.templates-label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.72rem;
+.meta-scroll,
+.filter-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.meta-scroll::-webkit-scrollbar,
+.filter-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.meta-chip,
+.filter-chip {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(28, 43, 38, 0.05);
+  border: 1px solid transparent;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
   font-weight: 800;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.templates-list {
+.meta-chip.active,
+.filter-chip.active {
+  background: color-mix(in srgb, var(--tone, var(--brand)) 18%, white);
+  border-color: color-mix(in srgb, var(--tone, var(--brand)) 40%, white);
+  color: var(--ink);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--tone, var(--brand)) 18%, transparent);
+}
+
+.priority-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(28, 43, 38, 0.05);
+}
+
+.prio-btn {
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.prio-btn.active {
+  background: #fff;
+  color: var(--tone, var(--brand-deep));
+  box-shadow: 0 4px 12px rgba(31, 79, 67, 0.12);
+}
+
+.list-panel {
+  padding: 14px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 14px 34px rgba(31, 79, 67, 0.08);
+}
+
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  flex: 1;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(28, 43, 38, 0.05);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.tab.active {
+  background: #fff;
+  color: var(--brand-deep);
+  box-shadow: 0 5px 14px rgba(31, 79, 67, 0.12);
+}
+
+.count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(47, 111, 94, 0.1);
+  color: var(--brand-deep);
+  font-size: 0.7rem;
+  line-height: 18px;
+}
+
+.tab.active .count {
+  background: rgba(47, 111, 94, 0.14);
+}
+
+.clear-btn {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--accent);
+  padding: 8px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.clear-btn:hover {
+  background: var(--accent-soft);
+}
+
+.filter-scroll {
+  margin-bottom: 12px;
+}
+
+.task-list {
+  display: grid;
+  gap: 10px;
+  min-height: 48px;
+}
+
+.empty {
+  text-align: center;
+  padding: 28px 10px 12px;
+}
+
+.empty-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--brand-deep);
+}
+
+.empty-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.empty-templates {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
+  margin-top: 18px;
+}
+
+.empty-label {
+  width: 100%;
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
 }
 
 .template {
@@ -690,81 +690,17 @@ function clearCompleted() {
   font-size: 0.8rem;
   font-weight: 700;
   border: 1px solid rgba(212, 99, 122, 0.12);
-  transition: background 0.2s, transform 0.2s var(--ease);
 }
 
 .template:hover {
   background: rgba(212, 99, 122, 0.14);
-  transform: translateY(-1px);
-}
-
-.pill,
-.cat-chip,
-.clear-btn {
-  transition: transform 0.2s var(--ease), background 0.2s, color 0.2s, border-color 0.2s;
-}
-
-.list-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 4px;
-}
-
-.list-head h2 {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  color: var(--brand-deep);
-}
-
-.clear-btn {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--accent);
-  padding: 6px 10px;
-  border-radius: 999px;
-}
-
-.clear-btn:hover {
-  background: var(--accent-soft);
-}
-
-.task-list {
-  display: grid;
-  gap: 10px;
-}
-
-.empty {
-  text-align: center;
-  padding: 36px 16px;
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.45);
-  border: 1px dashed rgba(47, 111, 94, 0.2);
-}
-
-.empty-icon {
-  font-size: 2rem;
-  margin-bottom: 8px;
-  animation: pop 0.45s var(--ease);
-}
-
-.empty p {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  color: var(--brand-deep);
-  margin-bottom: 4px;
-}
-
-.empty span {
-  color: var(--muted);
-  font-size: 0.9rem;
 }
 
 .footer {
   text-align: center;
-  margin-top: 28px;
+  margin-top: 22px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
 }
 
 .link {
@@ -779,34 +715,39 @@ function clearCompleted() {
 
 .list-enter-active,
 .list-leave-active {
-  transition: all 0.35s var(--ease);
+  transition: all 0.3s var(--ease);
 }
 
 .list-enter-from {
   opacity: 0;
-  transform: translateY(12px) scale(0.98);
+  transform: translateY(10px);
 }
 
 .list-leave-to {
   opacity: 0;
-  transform: translateX(20px) scale(0.96);
+  transform: translateX(16px);
 }
 
 .list-move {
-  transition: transform 0.35s var(--ease);
+  transition: transform 0.3s var(--ease);
 }
 
 @media (max-width: 420px) {
-  .hero-top {
-    align-items: flex-start;
+  .composer-bar {
+    grid-template-columns: 1fr;
   }
 
-  .cat-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .btn-add {
+    width: 100%;
   }
 
-  .segment-btn {
-    font-size: 0.8rem;
+  .list-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clear-btn {
+    align-self: flex-end;
   }
 }
 </style>
