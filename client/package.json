@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "deploy:vk": "npm run build && vk-miniapps-deploy"
+    "deploy:vk": "npm run build && node scripts/deploy-vk.mjs"
   },
   "dependencies": {
     "@vkontakte/vk-bridge": "^2.15.7",
