@@ -35,6 +35,14 @@
         </button>
       </form>
 
+      <input
+        v-model="newTaskNote"
+        class="note-input"
+        maxlength="200"
+        placeholder="Заметка к задаче (необязательно)"
+        autocomplete="off"
+      />
+
       <div class="composer-meta">
         <div class="meta-scroll" role="group" aria-label="Категория новой задачи">
           <button
@@ -166,6 +174,8 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import TaskItem from './components/TaskItem.vue'
 import ConfettiBurst from './components/ConfettiBurst.vue'
 import WelcomeModal from './components/WelcomeModal.vue'
+import { startVkApp, isVkLaunch } from './vk'
+import { loadVkState, saveVkState, isVkStorageAvailable } from './utils/vkStorage'
 import {
   CATEGORIES,
   PRIORITIES,
@@ -173,15 +183,19 @@ import {
   loadTasks,
   saveTasks,
   loadStreak,
+  saveStreak,
   touchStreak,
   greetingForNow,
   formatDateRu,
   hasSeenWelcome,
-  markWelcomeSeen
+  markWelcomeSeen,
+  getLocalUpdatedAt,
+  setLocalUpdatedAt
 } from './utils/planner'
 
 const tasks = ref([])
 const newTaskText = ref('')
+const newTaskNote = ref('')
 const newCategory = ref('home')
 const newPriority = ref('medium')
 const statusFilter = ref('active')
@@ -192,6 +206,9 @@ const streak = ref({ count: 0, lastDate: null })
 const celebrate = ref(false)
 const showWelcome = ref(false)
 const inputRef = ref(null)
+const syncReady = ref(false)
+let syncTimer = null
+let applyingRemote = false
 
 const categories = CATEGORIES
 const priorities = PRIORITIES
@@ -245,7 +262,59 @@ const emptyHint = computed(() => {
   return 'Смените фильтр выше'
 })
 
-onMounted(() => {
+function persistLocal(updatedAt = Date.now()) {
+  saveTasks(tasks.value)
+  saveStreak(streak.value)
+  setLocalUpdatedAt(updatedAt)
+  return updatedAt
+}
+
+function scheduleVkSync(updatedAt) {
+  if (!isVkStorageAvailable() || !syncReady.value) return
+  clearTimeout(syncTimer)
+  syncTimer = setTimeout(() => {
+    void saveVkState({
+      tasks: tasks.value,
+      streak: streak.value,
+      welcomeSeen: hasSeenWelcome(),
+      updatedAt
+    }).catch(() => {})
+  }, 400)
+}
+
+async function hydrateFromVk() {
+  if (!isVkStorageAvailable()) return
+  try {
+    const remote = await loadVkState()
+    const localUpdatedAt = getLocalUpdatedAt()
+
+    if (remote && remote.updatedAt > localUpdatedAt) {
+      applyingRemote = true
+      tasks.value = Array.isArray(remote.tasks) ? remote.tasks : []
+      streak.value = remote.streak || { count: 0, lastDate: null }
+      if (remote.welcomeSeen) markWelcomeSeen()
+      persistLocal(remote.updatedAt)
+      showWelcome.value = !hasSeenWelcome()
+      applyingRemote = false
+      return
+    }
+
+    const updatedAt = localUpdatedAt || Date.now()
+    persistLocal(updatedAt)
+    await saveVkState({
+      tasks: tasks.value,
+      streak: streak.value,
+      welcomeSeen: hasSeenWelcome(),
+      updatedAt
+    })
+  } catch {
+    /* offline / bridge fail — local data stays */
+  }
+}
+
+onMounted(async () => {
+  startVkApp()
+
   const now = new Date()
   currentDate.value = formatDateRu(now)
   greeting.value = greetingForNow(now)
@@ -253,12 +322,10 @@ onMounted(() => {
   streak.value = loadStreak()
   showWelcome.value = !hasSeenWelcome()
 
-  if (typeof window.vkBridge !== 'undefined') {
-    Promise.race([
-      window.vkBridge.send('VKWebAppInit'),
-      new Promise((_, reject) => setTimeout(() => reject(), 1200))
-    ]).catch(() => {})
+  if (isVkLaunch()) {
+    await hydrateFromVk()
   }
+  syncReady.value = true
 
   if (!showWelcome.value) {
     nextTick(() => inputRef.value?.focus())
@@ -268,13 +335,17 @@ onMounted(() => {
 function closeWelcome() {
   showWelcome.value = false
   markWelcomeSeen()
+  const updatedAt = persistLocal()
+  scheduleVkSync(updatedAt)
   nextTick(() => inputRef.value?.focus())
 }
 
 watch(
-  tasks,
-  (value) => {
-    saveTasks(value)
+  [tasks, streak],
+  () => {
+    if (applyingRemote) return
+    const updatedAt = persistLocal()
+    scheduleVkSync(updatedAt)
   },
   { deep: true }
 )
@@ -286,6 +357,7 @@ async function addTask() {
   tasks.value.unshift({
     id: Date.now() + Math.random(),
     text,
+    note: newTaskNote.value.trim(),
     done: false,
     category: newCategory.value,
     priority: newPriority.value,
@@ -293,6 +365,7 @@ async function addTask() {
   })
 
   newTaskText.value = ''
+  newTaskNote.value = ''
   statusFilter.value = 'active'
   categoryFilter.value = 'all'
 
@@ -302,6 +375,7 @@ async function addTask() {
 
 function quickAdd(tpl) {
   newTaskText.value = tpl.text
+  newTaskNote.value = ''
   newCategory.value = tpl.category
   newPriority.value = tpl.priority
   addTask()
@@ -487,6 +561,26 @@ function clearCompleted() {
 .input:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 4px rgba(47, 111, 94, 0.12);
+}
+
+.note-input {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 111, 94, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 10px 12px;
+  outline: none;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  user-select: text;
+}
+
+.note-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(47, 111, 94, 0.1);
 }
 
 .btn-add {

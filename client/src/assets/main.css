@@ -105,3 +105,39 @@ a {
     transition: none !important;
   }
 }
+
+:root {
+  --vk-inset-top: 0px;
+  --vk-inset-right: 0px;
+  --vk-inset-bottom: 0px;
+  --vk-inset-left: 0px;
+  --vk-chrome-top: 0px;
+  --vk-chrome-bottom: 0px;
+  --vk-chrome-right: 0px;
+}
+
+html.vk-app {
+  --vk-chrome-top: max(env(safe-area-inset-top, 0px), var(--vk-inset-top));
+  --vk-chrome-bottom: max(env(safe-area-inset-bottom, 0px), var(--vk-inset-bottom));
+  --vk-chrome-right: max(env(safe-area-inset-right, 0px), var(--vk-inset-right), 96px);
+}
+
+html.vk-app.vk-desktop {
+  --vk-chrome-top: max(48px, env(safe-area-inset-top, 0px), var(--vk-inset-top));
+}
+
+html.vk-app .app {
+  padding-top: calc(12px + var(--vk-chrome-top));
+  padding-right: calc(14px + max(0px, var(--vk-inset-right)));
+  padding-bottom: calc(36px + var(--vk-chrome-bottom));
+  padding-left: calc(14px + max(0px, var(--vk-inset-left)));
+}
+
+html.vk-app .composer {
+  top: calc(8px + var(--vk-chrome-top));
+}
+
+html.vk-app .topbar {
+  padding-right: max(0px, calc(var(--vk-chrome-right) - 14px));
+}
+

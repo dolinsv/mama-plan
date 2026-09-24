@@ -12,6 +12,7 @@
     <div class="body" @dblclick="startEdit">
       <div v-if="!editing" class="content">
         <p class="text">{{ task.text }}</p>
+        <p v-if="task.note" class="note">{{ task.note }}</p>
         <div class="meta">
           <span class="chip cat">{{ category.icon }} {{ category.name }}</span>
           <span class="chip pri" :style="{ color: priority.tone }">{{ priority.name }}</span>
@@ -24,6 +25,15 @@
           v-model="draft"
           class="edit-input"
           maxlength="120"
+          placeholder="Название задачи"
+          @keydown.esc.prevent="cancel"
+        />
+        <textarea
+          v-model="draftNote"
+          class="edit-note"
+          maxlength="200"
+          rows="2"
+          placeholder="Заметка (необязательно)"
           @keydown.esc.prevent="cancel"
         />
         <div class="edit-actions">
@@ -52,6 +62,7 @@ const emit = defineEmits(['toggle', 'remove', 'update'])
 
 const editing = ref(false)
 const draft = ref('')
+const draftNote = ref('')
 const inputEl = ref(null)
 
 const category = computed(() => categoryById(props.task.category))
@@ -59,6 +70,7 @@ const priority = computed(() => priorityById(props.task.priority))
 
 async function startEdit() {
   draft.value = props.task.text
+  draftNote.value = props.task.note || ''
   editing.value = true
   await nextTick()
   inputEl.value?.focus()
@@ -72,7 +84,10 @@ function cancel() {
 function save() {
   const text = draft.value.trim()
   if (!text) return
-  emit('update', props.task.id, { text })
+  emit('update', props.task.id, {
+    text,
+    note: draftNote.value.trim()
+  })
   editing.value = false
 }
 </script>
@@ -148,6 +163,15 @@ function save() {
   word-break: break-word;
 }
 
+.note {
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -199,7 +223,8 @@ function save() {
   gap: 8px;
 }
 
-.edit-input {
+.edit-input,
+.edit-note {
   width: 100%;
   border: 1px solid rgba(47, 111, 94, 0.25);
   border-radius: 12px;
@@ -207,9 +232,13 @@ function save() {
   background: #fff;
   outline: none;
   user-select: text;
+  font: inherit;
+  color: var(--ink);
+  resize: vertical;
 }
 
-.edit-input:focus {
+.edit-input:focus,
+.edit-note:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(47, 111, 94, 0.12);
 }

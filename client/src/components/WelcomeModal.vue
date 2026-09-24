@@ -7,49 +7,47 @@
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-title"
-        @click.self="$emit('close')"
       >
         <div class="card">
-          <p class="eyebrow">Добро пожаловать</p>
+          <p class="eyebrow">Первый запуск</p>
           <h2 id="welcome-title" class="title">MamaPlan</h2>
           <p class="lead">
-            Простой планировщик дел для мам: записывайте задачи, отмечайте выполненное
-            и держите день под контролем.
+            Планировщик дел для мам. За 30 секунд — как пользоваться:
           </p>
 
-          <ul class="features">
+          <ol class="steps">
             <li>
-              <span class="ico">✍️</span>
+              <span class="num">1</span>
               <div>
-                <strong>Быстрое создание</strong>
-                <p>Напишите задачу сверху и нажмите «Добавить»</p>
+                <strong>Создайте задачу</strong>
+                <p>В поле сверху напишите дело и нажмите «Добавить». При желании добавьте заметку.</p>
               </div>
             </li>
             <li>
-              <span class="ico">🏷️</span>
+              <span class="num">2</span>
               <div>
-                <strong>Категории и приоритеты</strong>
-                <p>Дети, дом, работа, покупки, отдых — и уровень важности</p>
+                <strong>Выберите категорию и важность</strong>
+                <p>Дети, дом, работа, покупки, отдых — и приоритет: обычно / важно / срочно.</p>
               </div>
             </li>
             <li>
-              <span class="ico">📋</span>
+              <span class="num">3</span>
               <div>
-                <strong>Удобный список</strong>
-                <p>Вкладки «Сейчас», «Все» и «Готово» помогают не путаться</p>
+                <strong>Смотрите список ниже</strong>
+                <p>Вкладки «Сейчас», «Все» и «Готово». Отмечайте выполненные галочкой.</p>
               </div>
             </li>
             <li>
-              <span class="ico">💾</span>
+              <span class="num">4</span>
               <div>
-                <strong>Всё сохраняется</strong>
-                <p>Задачи остаются в браузере — можно закрыть вкладку и вернуться</p>
+                <strong>Данные синхронизируются</strong>
+                <p>В VK Mini App задачи сохраняется между телефонами и vk.ru. В браузере — локально.</p>
               </div>
             </li>
-          </ul>
+          </ol>
 
           <button type="button" class="cta" @click="$emit('close')">
-            Начать планировать
+            Понятно, начать
           </button>
         </div>
       </div>
@@ -72,14 +70,18 @@ defineEmits(['close'])
   z-index: 80;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding:
+    calc(20px + var(--vk-chrome-top, 0px))
+    calc(20px + var(--vk-chrome-right, 0px))
+    calc(20px + var(--vk-chrome-bottom, 0px))
+    20px;
   background: rgba(18, 32, 28, 0.45);
   backdrop-filter: blur(8px);
 }
 
 .card {
   width: min(100%, 420px);
-  max-height: min(92vh, 680px);
+  max-height: min(92vh, 720px);
   overflow: auto;
   padding: 28px 22px 22px;
   border-radius: 28px;
@@ -117,15 +119,16 @@ defineEmits(['close'])
   line-height: 1.45;
 }
 
-.features {
+.steps {
   list-style: none;
   display: grid;
   gap: 12px;
   margin: 0 0 22px;
   padding: 0;
+  counter-reset: none;
 }
 
-.features li {
+.steps li {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 12px;
@@ -136,25 +139,26 @@ defineEmits(['close'])
   border: 1px solid rgba(47, 111, 94, 0.08);
 }
 
-.ico {
-  width: 36px;
-  height: 36px;
+.num {
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 4px 12px rgba(31, 79, 67, 0.08);
-  font-size: 1.05rem;
+  border-radius: 10px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
 }
 
-.features strong {
+.steps strong {
   display: block;
   margin-bottom: 2px;
   color: var(--ink);
   font-size: 0.92rem;
 }
 
-.features p {
+.steps p {
   margin: 0;
   color: var(--muted);
   font-size: 0.82rem;

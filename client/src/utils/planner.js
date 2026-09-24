@@ -20,18 +20,11 @@ export const QUICK_TEMPLATES = [
   { text: 'Ответить на сообщения', category: 'work', priority: 'low' }
 ]
 
-export const MOTIVATIONS = [
-  'Маленькие шаги — тоже победа.',
-  'Сегодня достаточно сделать главное.',
-  'Ты справляешься лучше, чем думаешь.',
-  'Порядок в делах — спокойствие в голове.',
-  'Забота о себе — часть заботы о семье.'
-]
-
 const STORAGE_KEY = 'mama_plan_v2'
 const LEGACY_KEY = 'mama_tasks'
 const STREAK_KEY = 'mama_plan_streak'
-const WELCOME_KEY = 'mama_plan_welcome_seen'
+const WELCOME_KEY = 'mama_plan_welcome_seen_v2'
+const UPDATED_AT_KEY = 'mama_plan_updated_at'
 
 export function hasSeenWelcome() {
   try {
@@ -49,12 +42,44 @@ export function markWelcomeSeen() {
   }
 }
 
+export function getLocalUpdatedAt() {
+  try {
+    return Number(localStorage.getItem(UPDATED_AT_KEY) || 0)
+  } catch {
+    return 0
+  }
+}
+
+export function setLocalUpdatedAt(ts) {
+  try {
+    localStorage.setItem(UPDATED_AT_KEY, String(ts))
+  } catch {
+    /* ignore */
+  }
+}
+
+function normalizeTask(t) {
+  return {
+    id: t.id || Date.now() + Math.random(),
+    text: String(t.text || '').trim(),
+    note: typeof t.note === 'string' ? t.note.trim() : '',
+    done: Boolean(t.done),
+    category: t.category || 'home',
+    priority: t.priority || 'medium',
+    createdAt: t.createdAt || new Date().toISOString()
+  }
+}
+
+function isValidTask(task) {
+  return task && typeof task.text === 'string' && task.text.trim() !== ''
+}
+
 export function loadTasks() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed.filter(isValidTask)
+      if (Array.isArray(parsed)) return parsed.filter(isValidTask).map(normalizeTask)
     }
 
     const legacy = localStorage.getItem(LEGACY_KEY)
@@ -63,14 +88,7 @@ export function loadTasks() {
       if (Array.isArray(parsed)) {
         return parsed
           .filter((t) => typeof t?.text === 'string' && t.text.trim())
-          .map((t) => ({
-            id: t.id || Date.now() + Math.random(),
-            text: t.text.trim(),
-            done: Boolean(t.done),
-            category: t.category || 'home',
-            priority: t.priority || 'medium',
-            createdAt: t.createdAt || new Date().toISOString()
-          }))
+          .map(normalizeTask)
       }
     }
   } catch {
@@ -83,13 +101,9 @@ export function saveTasks(tasks) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
 }
 
-function isValidTask(task) {
-  return task && typeof task.text === 'string' && task.text.trim() !== ''
-}
-
 export function greetingForNow(date = new Date()) {
   const h = date.getHours()
-  if (h < 6) return 'Тихий час'
+  if (h < 6) return 'Доброй ночи'
   if (h < 12) return 'Доброе утро'
   if (h < 18) return 'Добрый день'
   return 'Добрый вечер'
@@ -113,6 +127,10 @@ export function loadStreak() {
   }
 }
 
+export function saveStreak(streak) {
+  localStorage.setItem(STREAK_KEY, JSON.stringify(streak))
+}
+
 export function touchStreak() {
   const today = new Date().toISOString().slice(0, 10)
   const streak = loadStreak()
@@ -126,7 +144,7 @@ export function touchStreak() {
     count: streak.lastDate === y ? streak.count + 1 : 1,
     lastDate: today
   }
-  localStorage.setItem(STREAK_KEY, JSON.stringify(next))
+  saveStreak(next)
   return next
 }
 
